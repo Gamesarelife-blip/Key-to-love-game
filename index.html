@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Key to Love - Mobile Edition</title>
+    <style>
+        body { margin: 0; background: #2c3e50; overflow: hidden; font-family: sans-serif; touch-action: none; }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #34495e; overflow: hidden; }
+        
+        /* Box styling - slightly smaller for better mobile fit */
+        .box { position: absolute; width: 70px; height: 70px; background: #8d6e63; border: 3px solid #5d4037; border-radius: 12px; cursor: grab; display: flex; align-items: center; justify-content: center; color: white; user-select: none; font-weight: bold; font-size: 10px; z-index: 2; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .box.open { background: #d7ccc8; border-style: dashed; color: #5d4037; }
+        
+        .fragment { position: absolute; width: 35px; height: 35px; background: gold; border-radius: 50%; box-shadow: 0 0 15px gold; display: none; z-index: 1; border: 2px solid #fff; }
+        
+        #ui { position: absolute; top: 15px; left: 15px; color: white; font-size: 16px; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+        
+        #message { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: #ff85a2; font-size: 28px; text-align: center; display: none; z-index: 20; font-weight: bold; text-shadow: 2px 2px #000; width: 90%; }
+        
+        #restart-btn { margin-top: 20px; padding: 12px 24px; background: gold; border: none; border-radius: 25px; color: #333; font-weight: bold; font-size: 18px; display: none; margin-left: auto; margin-right: auto; }
+
+        #key-display { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 10; }
+        .slot { width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; }
+        .slot.filled { background: gold; box-shadow: 0 0 10px gold; border-color: white; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">Level: <span id="level-num">1</span><br>Double-tap boxes!</div>
+    <div id="message">
+        💖 YOU FOUND LOVE! 💖
+        <button id="restart-btn" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+    <div id="key-display">
+        <div class="slot" id="slot0"></div>
+        <div class="slot" id="slot1"></div>
+        <div class="slot" id="slot2"></div>
+    </div>
+</div>
+
+<script>
+    let currentLevel = 1;
+    let fragmentsFound = 0;
+    const container = document.getElementById('game-container');
+    
+    function startLevel(level) {
+        const items = document.querySelectorAll('.box, .fragment');
+        items.forEach(b => b.remove());
+        document.getElementById('level-num').innerText = level;
+        
+        // Logical positioning as requested
+        let fragmentIndex;
+        if (level === 1) fragmentIndex = 2; // 3rd box
+        else if (level === 2) fragmentIndex = 6; // 7th box
+        else if (level === 3) fragmentIndex = 7; // 8th box
+        else fragmentIndex = 0;
+
+        const boxCount = Math.max(fragmentIndex + 1, 5);
+
+        for (let i = 0; i < boxCount; i++) {
+            const box = document.createElement('div');
+            box.className = 'box';
+            box.innerText = "TAP TAP";
+            
+            // Mobile Friendly Spawning (Avoids edges and UI)
+            const x = 20 + Math.random() * (window.innerWidth - 110);
+            const y = 80 + Math.random() * (window.innerHeight - 200);
+            box.style.left = x + 'px';
+            box.style.top = y + 'px';
+            
+            if (i === fragmentIndex) {
+                const frag = document.createElement('div');
+                frag.className = 'fragment';
+                frag.style.left = (x + 15) + 'px';
+                frag.style.top = (y + 15) + 'px';
+                
+                // Bigger hit area for mobile finger tapping
+                frag.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    collectFragment();
+                }, {passive: false});
+                
+                container.appendChild(frag);
+                box.dataset.hasFragment = "true";
+                box.fragRef = frag;
+            }
+
+            makeMoveable(box);
+            
+            let lastTap = 0;
+            box.addEventListener('touchstart', function(e) {
+                let currentTime = new Date().getTime();
+                let tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    box.classList.add('open');
+                    box.innerText = "OPEN";
+                    if (box.dataset.hasFragment === "true") {
+                        box.fragRef.style.display = 'block';
+                    }
+                }
+                lastTap = currentTime;
+            });
+
+            container.appendChild(box);
+        }
+    }
+
+    function makeMoveable(el) {
+        el.addEventListener('touchmove', function(e) {
+            e.preventDefault(); // Prevents page scrolling while playing
+            const touch = e.touches[0];
+            const x = touch.clientX - 35;
+            const y = touch.clientY - 35;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            
+            if (el.fragRef) {
+                el.fragRef.style.left = (x + 15) + 'px';
+                el.fragRef.style.top = (y + 15) + 'px';
+            }
+        }, {passive: false});
+    }
+
+    function collectFragment() {
+        if(fragmentsFound < 3) {
+            document.getElementById(`slot${fragmentsFound}`).classList.add('filled');
+            fragmentsFound++;
+            
+            if (fragmentsFound < 3) {
+                alert("Fragment Found! Level Up!");
+                startLevel(++currentLevel);
+            } else {
+                document.getElementById('message').style.display = 'block';
+                document.getElementById('restart-btn').style.display = 'block';
+                document.querySelectorAll('.box').forEach(b => b.style.display = 'none');
+            }
+        }
+    }
+
+    startLevel(1);
+</script>
+</body>
+</html>
